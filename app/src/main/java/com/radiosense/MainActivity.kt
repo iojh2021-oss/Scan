@@ -40,6 +40,8 @@ import android.telephony.CellInfoWcdma
 import android.telephony.TelephonyManager
 import android.view.View
 import android.view.ViewGroup
+import android.view.Gravity
+import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.Button
 import android.widget.LinearLayout
@@ -281,33 +283,42 @@ class MainActivity : Activity() {
         }
 
     private fun buildUi() {
+        window.statusBarColor = c("#0A0F1C")
+        window.navigationBarColor = c("#081018")
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(c("#0F172A"))
-            setPadding(dp(12), dp(36), dp(12), dp(8))
+            setPadding(dp(14), dp(36), dp(14), dp(8))
         }
-        root.addView(label("📡 رادار امواج اطراف", 22f, bold = true))
-        summary = label("", 14f, c("#38BDF8"))
-        summary.setPadding(0, dp(6), 0, dp(8))
-        root.addView(summary)
+        root.addView(label("رادار امواج", 30f, Color.WHITE).apply { typeface = Ui.light() })
+        summary = label("", 13f, c("#B6D4E6"))
+        summary.background = Ui.pill(this)
+        summary.setPadding(dp(16), dp(8), dp(16), dp(8))
+        root.addView(summary, LinearLayout.LayoutParams(WC, WC).apply { topMargin = dp(8); bottomMargin = dp(10) })
 
         tabRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         tabNames.forEachIndexed { i, nme ->
             tabRow.addView(Button(this).apply {
-                text = nme; setTextColor(Color.WHITE); isAllCaps = false
+                text = nme; setTextColor(Color.WHITE); isAllCaps = false; textSize = 13f
+                stateListAnimator = null; minHeight = 0; minimumHeight = 0
+                setPadding(dp(16), 0, dp(16), 0)
                 setOnClickListener { tab = i; render() }
-            }, LinearLayout.LayoutParams(WC, dp(44)).apply { setMargins(dp(3), 0, dp(3), 0) })
+            }, LinearLayout.LayoutParams(WC, dp(38)).apply { setMargins(dp(3), 0, dp(3), 0) })
         }
-        root.addView(HorizontalScrollView(this).apply { addView(tabRow) })
+        root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(tabRow) })
 
-        content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(10), 0, dp(20)) }
-        root.addView(ScrollView(this).apply { addView(content) }, LinearLayout.LayoutParams(MP, 0, 1f))
-        setContentView(root)
+        content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(12), 0, dp(24)) }
+        root.addView(ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(content) },
+            LinearLayout.LayoutParams(MP, 0, 1f))
+
+        val frame = FrameLayout(this)
+        frame.addView(GlassBg(this), FrameLayout.LayoutParams(MP, MP))
+        frame.addView(root, FrameLayout.LayoutParams(MP, MP))
+        setContentView(frame)
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_RTL
     }
 
     private fun head(t: String) {
-        content.addView(label(t, 15f, c("#38BDF8"), true).apply { setPadding(0, 0, 0, dp(8)) })
+        content.addView(label(t, 14f, c("#9FD8EA"), true).apply { setPadding(dp(4), 0, 0, dp(8)) })
     }
 
     private fun note(t: String, color: String = "#94A3B8") {
@@ -317,19 +328,41 @@ class MainActivity : Activity() {
     private fun card(title: String, sub: String, pct: Int, right: String) {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            setBackgroundColor(c("#1E293B"))
+            setPadding(dp(16), dp(12), dp(16), dp(14))
+            background = Ui.glass(this@MainActivity, 24)
         }
         val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         top.addView(label(title, 15f, bold = true), LinearLayout.LayoutParams(0, WC, 1f))
-        top.addView(label(right, 14f, pctColor(pct), true))
+        top.addView(label(right, 15f, pctColor(pct), true))
         box.addView(top)
-        box.addView(label(sub, 12f, c("#94A3B8")))
-        box.addView(ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 100; progress = pct
-            progressTintList = ColorStateList.valueOf(pctColor(pct))
-        }, LinearLayout.LayoutParams(MP, dp(8)).apply { topMargin = dp(6) })
-        content.addView(box, LinearLayout.LayoutParams(MP, WC).apply { bottomMargin = dp(8) })
+        box.addView(label(sub, 12f, c("#A9BCCB")))
+        box.addView(GlassBar(this).also { it.set(pct, pctColor(pct)) },
+            LinearLayout.LayoutParams(MP, dp(6)).apply { topMargin = dp(10) })
+        content.addView(box, LinearLayout.LayoutParams(MP, WC).apply { bottomMargin = dp(10) })
+    }
+
+    private class Tile(val icon: String, val value: String, val label: String, val goTab: Int, val accent: String)
+
+    private fun tileRow(a: Tile, b: Tile) {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf(a, b).forEach { t ->
+            val box = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(16), dp(14), dp(16), dp(14))
+                background = Ui.glass(this@MainActivity, 28)
+                isClickable = true
+                setOnClickListener { tab = t.goTab; render() }
+            }
+            box.addView(TextView(this).apply {
+                text = t.icon; textSize = 18f; gravity = Gravity.CENTER
+                background = Ui.circle(c(t.accent))
+            }, LinearLayout.LayoutParams(dp(42), dp(42)))
+            box.addView(label(t.value, 40f, Color.WHITE).apply { typeface = Ui.thin() },
+                LinearLayout.LayoutParams(WC, WC).apply { topMargin = dp(6) })
+            box.addView(label(t.label, 13f, c("#A9BCCB")))
+            row.addView(box, LinearLayout.LayoutParams(0, WC, 1f).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) })
+        }
+        content.addView(row)
     }
 
     private fun v(x: Int) = if (x == Int.MAX_VALUE || x == -1) "?" else x.toString()
@@ -340,7 +373,9 @@ class MainActivity : Activity() {
         val bt = btMap.entries.filter { now - it.value.last < 30000 }.sortedByDescending { it.value.rssi }
         val heard = sats.count { it.cn0 > 0f }
         summary.text = "وای‌فای: ${wifiList.size}  •  بلوتوث: ${bt.size}  •  سلولی: ${cells.size}  •  ماهواره: $heard"
-        for (i in 0 until tabRow.childCount) tabRow.getChildAt(i).setBackgroundColor(if (i == tab) c("#2563EB") else c("#334155"))
+        for (i in 0 until tabRow.childCount) tabRow.getChildAt(i).background =
+                if (i == tab) Ui.glass(this, 60, 0x66FFFFFF, 0x33FFFFFF, 0x80FFFFFF.toInt())
+                else Ui.pill(this, 0x1AFFFFFF, 0x0DFFFFFF, 0x26FFFFFF)
         if (tab == 1) {
             if (fm.root.parent !== content) {
                 content.removeAllViews()
@@ -370,11 +405,9 @@ class MainActivity : Activity() {
 
     private fun rSummary(btCount: Int, heard: Int) {
         head("تعداد واقعی منابع شناسایی‌شده")
-        card("وای‌فای (Access Point)", "${wifiList.size} نقطه دسترسی", 0.coerceAtLeast(minOf(100, wifiList.size * 5)), "${wifiList.size}")
-        card("بلوتوث (BLE + کلاسیک)", "دستگاه‌های فعال در ۳۰ ثانیه اخیر", minOf(100, btCount * 5), "$btCount")
-        card("دکل‌های سلولی", "2G/3G/4G/5G", minOf(100, cells.size * 20), "${cells.size}")
-        card("ماهواره‌های ناوبری", "GPS/GLONASS/Galileo/BeiDou ...", minOf(100, heard * 5), "$heard")
-        card("میدان مغناطیسی", "نویز الکترومغناطیسی محیط", ((mag / 150f) * 100).toInt().coerceIn(0, 100), "%.0f µT".format(mag))
+        tileRow(Tile("📶", "${wifiList.size}", "وای‌فای", 2, "#38BDF8"), Tile("🔵", "$btCount", "بلوتوث", 3, "#60A5FA"))
+        tileRow(Tile("📱", "${cells.size}", "دکل سلولی", 4, "#34D399"), Tile("🛰", "$heard", "ماهواره", 5, "#FBBF24"))
+        tileRow(Tile("🧲", "%.0f".format(mag), "مغناطیس µT", 6, "#C084FC"), Tile("📻", "SDR", "رادیو", 1, "#F87171"))
         head("سخت‌افزار رادیویی این گوشی")
         val pm = packageManager
         val feats = listOf(

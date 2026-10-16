@@ -52,6 +52,7 @@ class FmTab(private val act: Activity) {
     private val ui = Handler(Looper.getMainLooper())
     private val MP = ViewGroup.LayoutParams.MATCH_PARENT
     private val WC = ViewGroup.LayoutParams.WRAP_CONTENT
+    private var panel: LinearLayout = root
 
     @Volatile private var tunedHz = 98_500_000L
     @Volatile private var mode = Mode.WFM
@@ -77,7 +78,7 @@ class FmTab(private val act: Activity) {
     private lateinit var freqTv: TextView
     private lateinit var modeTv: TextView
     private lateinit var meterTv: TextView
-    private lateinit var meterBar: ProgressBar
+    private lateinit var meterBar: GlassBar
     private lateinit var spectrum: SpectrumView
     private lateinit var manualEt: EditText
     private lateinit var startEt: EditText
@@ -106,13 +107,17 @@ class FmTab(private val act: Activity) {
         TextView(act).apply { text = t; textSize = size; setTextColor(c(color)); if (bold) setTypeface(null, Typeface.BOLD) }
 
     private fun btn(t: String, bg: String = "#334155", f: () -> Unit) = Button(act).apply {
-        text = t; isAllCaps = false; setTextColor(Color.WHITE); setBackgroundColor(c(bg)); textSize = 13f
+        text = t; isAllCaps = false; setTextColor(Color.WHITE); textSize = 13f
+        stateListAnimator = null; minHeight = 0; minimumHeight = 0
+        setPadding(dp(10), dp(10), dp(10), dp(10))
+        background = if (bg == "#334155") Ui.pill(act) else Ui.tinted(act, c(bg))
         setOnClickListener { f() }
     }
 
     private fun edit(text: String, type: Int, h: String = "") = EditText(act).apply {
         setText(text); inputType = type; setTextColor(Color.WHITE); setHintTextColor(c("#64748B")); hint = h
-        textSize = 14f; setBackgroundColor(c("#1E293B")); setPadding(dp(10), dp(8), dp(10), dp(8)); setSingleLine()
+        textSize = 14f; background = Ui.glass(act, 16, 0x26FFFFFF, 0x14FFFFFF, 0x33FFFFFF)
+        setPadding(dp(12), dp(10), dp(12), dp(10)); setSingleLine()
     }
 
     private fun hrow(vararg vs: View) = LinearLayout(act).apply {
@@ -120,12 +125,25 @@ class FmTab(private val act: Activity) {
         vs.forEach { addView(it, LinearLayout.LayoutParams(0, WC, 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) }) }
     }
 
-    private fun section(t: String) { root.addView(tv(t, 15f, "#38BDF8", true), lp(14)) }
+    private fun newPanel(title: String = ""): LinearLayout {
+        val p = LinearLayout(act).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(14))
+            background = Ui.glass(act, 28)
+        }
+        root.addView(p, LinearLayout.LayoutParams(MP, WC).apply { topMargin = dp(12) })
+        if (title.isNotEmpty()) p.addView(tv(title, 14f, "#9FD8EA", true).apply { letterSpacing = 0.04f })
+        panel = p
+        return p
+    }
+
+    private fun section(t: String) { newPanel(t) }
 
     private fun spinner(items: List<String>, sel: Int, onSel: (Int) -> Unit) = Spinner(act).apply {
         adapter = ArrayAdapter(act, android.R.layout.simple_spinner_item, items).also {
             it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         }
+        background = Ui.pill(act); setPadding(dp(12), dp(6), dp(12), dp(6))
         setSelection(sel, false)
         onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) { onSel(pos) }
@@ -135,6 +153,7 @@ class FmTab(private val act: Activity) {
 
     private fun seek(label: String, max: Int, prog: Int, onChange: (Int) -> Unit) = SeekBar(act).apply {
         this.max = max; progress = prog
+        progressTintList = ColorStateList.valueOf(c("#5EEAD4")); thumbTintList = ColorStateList.valueOf(Color.WHITE)
         setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) { onChange(p) }
             override fun onStartTrackingTouch(s: SeekBar?) {}
@@ -146,83 +165,82 @@ class FmTab(private val act: Activity) {
     private fun build() {
         section("اتصال به دانگل RTL-SDR")
         statusTv = tv("قطع • برای شروع دانگل را با OTG وصل و درایور را Start کنید", 13f, "#FBBF24")
-        root.addView(statusTv, lp())
+        panel.addView(statusTv, lp())
         hostEt = edit("127.0.0.1", InputType.TYPE_CLASS_TEXT)
         portEt = edit("1234", InputType.TYPE_CLASS_NUMBER)
-        root.addView(hrow(hostEt, portEt), lp())
+        panel.addView(hrow(hostEt, portEt), lp())
         connectBtn = btn("اتصال", "#2563EB") { toggleConnect() }
-        root.addView(hrow(connectBtn, btn("باز کردن درایور RTL-SDR") { openDriver() }), lp())
+        panel.addView(hrow(connectBtn, btn("باز کردن درایور RTL-SDR") { openDriver() }), lp())
 
-        freqTv = tv(fmt(tunedHz), 46f, "#F8FAFC", true).apply {
-            gravity = Gravity.CENTER; typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-        }
-        root.addView(freqTv, lp(14))
+        newPanel()
+        freqTv = tv(fmt(tunedHz), 64f, "#FFFFFF").apply { gravity = Gravity.CENTER; typeface = Ui.thin() }
+        panel.addView(freqTv, lp(14))
         modeTv = tv("MHz  •  ${mode.fa}", 14f, "#94A3B8").apply { gravity = Gravity.CENTER }
-        root.addView(modeTv, lp())
+        panel.addView(modeTv, lp())
         meterTv = tv("قدرت: —   SNR: —", 14f, "#E2E8F0").apply { gravity = Gravity.CENTER }
-        root.addView(meterTv, lp(6))
-        meterBar = ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
-        root.addView(meterBar, LinearLayout.LayoutParams(MP, dp(10)).apply { topMargin = dp(4) })
+        panel.addView(meterTv, lp(6))
+        meterBar = GlassBar(act)
+        panel.addView(meterBar, LinearLayout.LayoutParams(MP, dp(10)).apply { topMargin = dp(4) })
 
         spectrum = SpectrumView(act)
         spectrum.onTap = { hz -> stopScan(); tune((hz / (stepKHz * 1000)).roundToLong() * (stepKHz * 1000).toLong()) }
-        root.addView(spectrum, LinearLayout.LayoutParams(MP, dp(220)).apply { topMargin = dp(10) })
-        root.addView(hrow(btn("نمای زنده") { spectrum.showSweep = false }, btn("نمای جاروب") { spectrum.showSweep = true }), lp())
-        root.addView(tv("روی نمودار بزنید تا همان فرکانس تنظیم شود.", 12f, "#64748B"), lp())
+        panel.addView(spectrum, LinearLayout.LayoutParams(MP, dp(220)).apply { topMargin = dp(10) })
+        panel.addView(hrow(btn("نمای زنده") { spectrum.showSweep = false }, btn("نمای جاروب") { spectrum.showSweep = true }), lp())
+        panel.addView(tv("روی نمودار بزنید تا همان فرکانس تنظیم شود.", 12f, "#64748B"), lp())
 
         section("تنظیم دستی")
-        root.addView(hrow(
+        panel.addView(hrow(
             btn("◀◀ 1MHz") { tuneBy(-1000.0) }, btn("◀ گام") { tuneBy(-stepKHz) },
             btn("گام ▶") { tuneBy(stepKHz) }, btn("1MHz ▶▶") { tuneBy(1000.0) }), lp())
         manualEt = edit("", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL, "فرکانس MHz مثل 98.5")
-        root.addView(hrow(manualEt, btn("برو", "#2563EB") {
+        panel.addView(hrow(manualEt, btn("برو", "#2563EB") {
             val v = manualEt.text.toString().replace(',', '.').toDoubleOrNull()
             if (v == null || v < 24 || v > 1760) toast("فرکانس بین 24 تا 1760 MHz") else { stopScan(); tune((v * 1e6).roundToLong()) }
         }), lp())
         modeSp = spinner(Mode.values().map { it.fa }, 0) { p -> setMode(Mode.values()[p]) }
         stepSp = spinner(STEPS.map { "گام ${it} kHz" }, 3) { p -> stepKHz = STEPS[p] }
-        root.addView(hrow(modeSp, stepSp), lp())
+        panel.addView(hrow(modeSp, stepSp), lp())
 
         section("جستجوی خودکار (جاروب طیف)")
         bandSp = spinner(BANDS.map { it.name }, 0) { p -> applyBand(BANDS[p]) }
-        root.addView(bandSp, lp())
+        panel.addView(bandSp, lp())
         startEt = edit("87.5", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL, "شروع MHz")
         stopEt = edit("108", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL, "پایان MHz")
-        root.addView(hrow(startEt, stopEt), lp())
+        panel.addView(hrow(startEt, stopEt), lp())
         scanBtn = btn("🔍 جستجوی خودکار", "#16A34A") { if (scanning) stopScan() else startScan() }
-        root.addView(hrow(scanBtn, btn("⏮ قبلی") { seek(-1) }, btn("بعدی ⏭") { seek(1) }), lp())
-        progTv = tv("", 12f, "#94A3B8"); root.addView(progTv, lp())
+        panel.addView(hrow(scanBtn, btn("⏮ قبلی") { seek(-1) }, btn("بعدی ⏭") { seek(1) }), lp())
+        progTv = tv("", 12f, "#94A3B8"); panel.addView(progTv, lp())
 
         val sensTv = tv("حساسیت: حداقل SNR برای تشخیص ایستگاه = $sens dB", 13f)
-        root.addView(sensTv, lp(8))
-        root.addView(seek("", 25, sens) { p ->
+        panel.addView(sensTv, lp(8))
+        panel.addView(seek("", 25, sens) { p ->
             sens = max(3, p); sensTv.text = "حساسیت: حداقل SNR برای تشخیص ایستگاه = $sens dB"; if (lastDb.isNotEmpty()) redetect()
         }, lp())
 
         val gainTv = tv("گین تیونر: 40 dB", 13f)
-        root.addView(gainTv, lp(8))
-        root.addView(seek("", 50, 40) { p ->
+        panel.addView(gainTv, lp(8))
+        panel.addView(seek("", 50, 40) { p ->
             gainTenths = p * 10; gainTv.text = "گین تیونر: $p dB"
             engine?.let { e -> e.cmds.add { cl -> e.applyGain(cl) } }
         }, lp())
-        root.addView(CheckBox(act).apply {
-            text = "AGC خودکار (برای سیگنال‌های خیلی قوی)"; setTextColor(c("#E2E8F0"))
+        panel.addView(CheckBox(act).apply {
+            text = "AGC خودکار (برای سیگنال‌های خیلی قوی)"; setTextColor(c("#E2E8F0")); buttonTintList = ColorStateList.valueOf(c("#5EEAD4"))
             setOnCheckedChangeListener { _, on -> agc = on; engine?.let { e -> e.cmds.add { cl -> e.applyGain(cl) } } }
         }, lp())
 
         section("پخش صدا")
         audioBtn = btn("🔊 پخش صدا", "#7C3AED") { toggleAudio() }
-        root.addView(audioBtn, lp())
-        root.addView(tv("بلندی صدا", 13f), lp(6))
-        root.addView(seek("", 100, 70) { p -> volume = p / 100f }, lp())
+        panel.addView(audioBtn, lp())
+        panel.addView(tv("بلندی صدا", 13f), lp(6))
+        panel.addView(seek("", 100, 70) { p -> volume = p / 100f }, lp())
 
         section("ایستگاه‌ها / سیگنال‌های یافت‌شده")
-        countTv = tv("هنوز جاروبی انجام نشده", 13f, "#94A3B8"); root.addView(countTv, lp())
+        countTv = tv("هنوز جاروبی انجام نشده", 13f, "#94A3B8"); panel.addView(countTv, lp())
         listBox = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(listBox, lp(6))
+        panel.addView(listBox, lp(6))
 
         section("راهنما")
-        root.addView(tv(
+        panel.addView(tv(
             "• گوشی به‌تنهایی تیونر رادیو ندارد؛ این تب با دانگل RTL-SDR (کابل OTG + آنتن) کار می‌کند.\n" +
             "• اپ «RTL-SDR driver» (marto.rtl_tcp_andro) را نصب کنید، دانگل را وصل و Start بزنید، سپس اینجا «اتصال».\n" +
             "• قدرت‌ها به dBFS (نسبت به سقف دیجیتال) هستند، نه dBm کالیبره. مقایسه‌ی نسبی معتبر است.\n" +
@@ -358,7 +376,7 @@ class FmTab(private val act: Activity) {
 
     private fun stationRow(s: Station): View {
         val box = LinearLayout(act).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(8), dp(12), dp(8)); setBackgroundColor(c("#1E293B"))
+            orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(10), dp(14), dp(12)); background = Ui.glass(act, 20, 0x26FFFFFF, 0x10FFFFFF, 0x33FFFFFF)
             isClickable = true; setOnClickListener { stopScan(); tune(s.hz) }
         }
         val pct = (s.snr * 100 / 40).roundToInt().coerceIn(0, 100)
@@ -369,9 +387,7 @@ class FmTab(private val act: Activity) {
         })
         box.addView(top)
         box.addView(tv(String.format(Locale.US, "قدرت %.1f dBFS", s.db), 12f, "#94A3B8"))
-        box.addView(ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 100; progress = pct; progressTintList = ColorStateList.valueOf(pctColor(pct))
-        }, LinearLayout.LayoutParams(MP, dp(6)).apply { topMargin = dp(4) })
+        box.addView(GlassBar(act).also { it.set(pct, pctColor(pct)) }, LinearLayout.LayoutParams(MP, dp(6)).apply { topMargin = dp(6) })
         return box
     }
 
@@ -389,8 +405,7 @@ class FmTab(private val act: Activity) {
     private fun showMeter(ch: Float, snr: Float) {
         val pct = (snr * 100 / 40).roundToInt().coerceIn(0, 100)
         meterTv.text = String.format(Locale.US, "قدرت: %.1f dBFS   •   SNR: %.1f dB", ch, snr)
-        meterBar.progress = pct
-        meterBar.progressTintList = ColorStateList.valueOf(pctColor(pct))
+        meterBar.set(pct, pctColor(pct))
     }
 
     // ---------- engine ----------

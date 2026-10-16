@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- حلقه‌های رادار -->
+    <path
+        android:pathData="M22,54a32,32 0 1,0 64,0a32,32 0 1,0 -64,0z"
+        android:fillColor="#0DFFFFFF"
+        android:strokeColor="#B3FFFFFF"
+        android:strokeWidth="1.8" />
+    <path
+        android:pathData="M32,54a22,22 0 1,0 44,0a22,22 0 1,0 -44,0z"
+        android:fillColor="#00000000"
+        android:strokeColor="#80FFFFFF"
+        android:strokeWidth="1.4" />
+    <path
+        android:pathData="M42,54a12,12 0 1,0 24,0a12,12 0 1,0 -24,0z"
+        android:fillColor="#00000000"
+        android:strokeColor="#66FFFFFF"
+        android:strokeWidth="1.2" />
+    <!-- جاروب رادار -->
+    <path
+        android:pathData="M54,54L84.07,43.06A32,32 0 0,0 67.52,25Z"
+        android:fillColor="#665EEAD4" />
+    <path
+        android:pathData="M54,54L67.52,25"
+        android:strokeColor="#FF5EEAD4"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- سیگنال‌ها -->
+    <path
+        android:pathData="M63,35m-2.6,0a2.6,2.6 0 1,0 5.2,0a2.6,2.6 0 1,0 -5.2,0"
+        android:fillColor="#FF86EFAC" />
+    <path
+        android:pathData="M44,36m-2,0a2,2 0 1,0 4,0a2,2 0 1,0 -4,0"
+        android:fillColor="#CCFFFFFF" />
+    <path
+        android:pathData="M72,64m-2,0a2,2 0 1,0 4,0a2,2 0 1,0 -4,0"
+        android:fillColor="#CCFFFFFF" />
+    <!-- مرکز -->
+    <path
+        android:pathData="M54,54m-3.4,0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0"
+        android:fillColor="#FFFFFFFF" />
+</vector>
