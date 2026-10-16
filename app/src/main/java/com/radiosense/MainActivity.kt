@@ -79,8 +79,9 @@ class MainActivity : Activity() {
     private lateinit var summary: TextView
     private lateinit var content: LinearLayout
     private lateinit var tabRow: LinearLayout
+    private lateinit var fm: FmTab
 
-    private val tabNames = listOf("خلاصه", "وای‌فای", "بلوتوث", "سلولی", "ماهواره", "مغناطیس", "درباره")
+    private val tabNames = listOf("خلاصه", "رادیو", "وای‌فای", "بلوتوث", "سلولی", "ماهواره", "مغناطیس", "درباره")
 
     // ---------- lifecycle ----------
     override fun onCreate(b: Bundle?) {
@@ -90,6 +91,7 @@ class MainActivity : Activity() {
         lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         sm = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         buildUi()
+        fm = FmTab(this)
     }
 
     private fun needed(): List<String> {
@@ -112,12 +114,14 @@ class MainActivity : Activity() {
             requestPermissions(m.toTypedArray(), 1)
         }
         start()
+        fm.resume()
         ui.post(tick)
     }
 
     override fun onPause() {
         super.onPause()
         ui.removeCallbacks(tick)
+        fm.pause()
         stop()
     }
 
@@ -337,15 +341,22 @@ class MainActivity : Activity() {
         val heard = sats.count { it.cn0 > 0f }
         summary.text = "وای‌فای: ${wifiList.size}  •  بلوتوث: ${bt.size}  •  سلولی: ${cells.size}  •  ماهواره: $heard"
         for (i in 0 until tabRow.childCount) tabRow.getChildAt(i).setBackgroundColor(if (i == tab) c("#2563EB") else c("#334155"))
+        if (tab == 1) {
+            if (fm.root.parent !== content) {
+                content.removeAllViews()
+                content.addView(fm.root, LinearLayout.LayoutParams(MP, WC))
+            }
+            return
+        }
         content.removeAllViews()
         warnings()
         when (tab) {
             0 -> rSummary(bt.size, heard)
-            1 -> rWifi()
-            2 -> rBt(bt)
-            3 -> rCell()
-            4 -> rSat(heard)
-            5 -> rMag()
+            2 -> rWifi()
+            3 -> rBt(bt)
+            4 -> rCell()
+            5 -> rSat(heard)
+            6 -> rMag()
             else -> rAbout()
         }
     }
